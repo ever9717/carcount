@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兴国县兴莲乡 - 实时车流量监控大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(90deg, #0f3460, #16213e);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid #e94560;
+        }
+        .header h1 { font-size: 28px; color: #e94560; }
+        .container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card {
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(15, 52, 96, 0.3));
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(233, 69, 96, 0.3);
+        }
+        .stat-value { font-size: 36px; font-weight: bold; color: #e94560; }
+        .stat-label { font-size: 12px; color: #aaa; margin-top: 8px; }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card-title { font-size: 16px; color: #e94560; margin-bottom: 15px; border-left: 3px solid #e94560; padding-left: 10px; }
+        .chart-container { width: 100%; height: 250px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { color: #e94560; }
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .status-green { background: #00ff88; }
+        .status-yellow { background: #ffcc00; }
+        .status-red { background: #ff4444; }
+        .update-time { text-align: center; color: #666; font-size: 12px; }
+        @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 兴国县兴莲乡实时车流量监控大屏</h1>
+    </div>
+
+    <div class="container">
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="totalFlow">0</div>
+                <div class="stat-label">总车流量（辆/小时）</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgCongestion">0</div>
+                <div class="stat-label">平均拥堵指数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgSpeed">0</div>
+                <div class="stat-label">平均车速（km/h）</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="monitorCount">8</div>
+                <div class="stat-label">监测点数量</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📊 实时监测数据</div>
+            <table>
+                <thead>
+                    <tr><th>状态</th><th>监测点</th><th>道路</th><th>流量</th><th>拥堵</th><th>车速</th></tr>
+                </thead>
+                <tbody id="monitorTable"></tbody>
+            </table>
+        </div>
+
+        <div class="update-time" id="updateTime"></div>
+    </div>
+
+    <script>
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/traffic');
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('totalFlow').textContent = data.summary.total_flow;
+                    document.getElementById('avgCongestion').textContent = data.summary.avg_congestion;
+                    document.getElementById('avgSpeed').textContent = data.summary.avg_speed;
+                    
+                    const tbody = document.getElementById('monitorTable');
+                    tbody.innerHTML = data.monitor_points.map(p => `
+                        <tr>
+                            <td><span class="status-dot ${p.congestion < 3 ? 'status-green' : p.congestion < 6 ? 'status-yellow' : 'status-red'}"></span>${p.congestion < 3 ? '畅通' : p.congestion < 6 ? '缓行' : '拥堵'}</td>
+                            <td>${p.name}</td>
+                            <td>${p.road}</td>
+                            <td>${p.flow}</td>
+                            <td>${p.congestion}</td>
+                            <td>${p.speed}</td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('updateTime').textContent = '更新时间：' + data.update_time;
+                }
+            } catch (e) {
+                console.error('获取数据失败:', e);
+            }
+        }
+        
+        fetchData();
+        setInterval(fetchData, 30000);
+    </script>
+</body>
+</html>
